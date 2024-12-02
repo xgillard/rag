@@ -1,0 +1,44 @@
+[project]
+name                   = "rag-uclouvain"
+version                = "0.0.1.dev"
+description            = "Un truc pour rechercher et faire la synthèse des pv de FIAL"
+readme                 = "README.md"
+authors                = [ {name = "Xavier GILLARD", email = "xavier.gillard@uclouvain.be"} ]
+maintainers            = [ {name = "Xavier GILLARD", email = "xavier.gillard@uclouvain.be"} ]
+dependencies           = [
+    "pydantic",
+    "pymupdf",
+    "pytorch",
+    "transformers",
+    "psycopg2",
+]
+
+######## BUILD-SYSTEM ################################################
+[build-system]
+requires               = ["hatchling"]
+build-backend          = "hatchling.build"
+
+############################ RUFF ####################################
+[tool.ruff]
+# global built-in configuration
+fix                    = false
+show-fixes             = true
+line-length            = 88
+indent-width           = 4
+exclude                = [".venv"]
+# how ruff is going to format code
+[tool.ruff.format]
+quote-style            = "double"
+indent-style           = "space"
+line-ending            = "cr-lf"
+docstring-code-format  = true
+# what kind of lints is it going to apply
+[tool.ruff.lint]
+select                 = ["ALL"]
+[tool.ruff.pycodestyle]
+max-line-length        = 120
+
+############################ MYPY ####################################
+[tool.mypy]
+ignore_missing_imports = true
+check_untyped_defs     = true
