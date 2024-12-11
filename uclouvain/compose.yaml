@@ -1,0 +1,108 @@
+###########################################################################
+# This file describes the infrastructure required for the semantic search
+# project (RAG) in a large corpus of texts.
+# -------------------------------------------------------------------------
+# This infrastructure comprises 4 distinct pieces:
+# 1. database :: a postgres database enriched with the pgvector extension 
+#                enabling its use as an efficient vector database 
+#                (searching document by vector [cosine] similarity).
+# 2. backend  :: a set of REST API (written in python) implementing the 
+#                bulk of the logic required to conduct a semantic search:
+#                - indexing of new documents.
+#                - research the n most relevant documents in response to
+#                  a user query.
+#                - generation of a synthetic, user facing response to the
+#                  user request.
+# 3. frontend :: a web-interface to let the users interact with the system
+#                is a more user-friendly way.
+# -------------------------------------------------------------------------
+# *Note:*
+# Given that this file expresses the infrastructure as a docker-compose
+# application, it means you can get the whole chain up and running with
+# single command. Namely:
+#
+# `docker compose --profile prod up`
+#
+# or, if you intend to use the development configuration rather than the
+# production config, just use:
+#
+# `docker compose --profile dev up --watch`
+#
+# In some rare cases, when you make updates that might require you to 
+# rebuild some or all of the docker images used to prop up this 
+# infrastructure, then all you will need to do is to run the command: 
+# `docker compose --profile prod up --build`
+###########################################################################
+name: rag-uclouvain
+services:
+  # This service provides the (postgres) vector database which is used to
+  # find the n document (chunks) most similar to a user search query.
+  database:
+    build: ./database
+    ports:
+      - "6666:5432"
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: md5
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: rag
+  
+  # This service provides the backend for the application. It implements
+  # most of the 'hard' logic of the RAG application. Most notably, it
+  # provides the indexation, retrieval and generation logic.
+  #
+  # *Important note:*
+  # This backend service is configured to make use of a gpu (NVIDIA CUDA)
+  # hardware accelerator. Without it, one could hardly expect the system
+  # to run smootly (or at all) -- most notably the indexation and generation
+  # parts. In the absence of such an accelerator, it would be useful to 
+  # consider offloading those functionalities to an external service
+  # (either external provider or external machine such as those from CECI,
+  # so as to pre-populate the embeddings stored in the vector database).
+  # Offloading the answer generation, however, seems much harder without
+  # resorting to an external provider.
+  backend:
+    build: ./backend
+    depends_on: [database]
+    profiles:   [prod]
+    ports:      ["8000:80"]
+    environment:
+      DATABASE_HOST: database
+      DATABASE_PORT: 5432
+      DATABASE_NAME: rag
+      DATABASE_USER: postgres
+      DATABASE_PASS: admin
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]
+  # This service provides is a clone of the backend service. The only
+  # major difference is that is watches the content of the /src folder
+  # and syncs it with the container file system. That, in combination
+  # with the fact that this container runs a development version of
+  # uvicorn/fastapi means that the code will be hot reloaded in the 
+  # container during development.
+  dev-backend:
+    build: ./backend
+    depends_on: [database]
+    profiles:   [dev]
+    ports:      ["8000:80"]
+    command:    fastapi dev backend.py --port 80 --host 0.0.0.0
+    environment:
+      DATABASE_HOST: database
+      DATABASE_PORT: 5432
+      DATABASE_NAME: rag
+      DATABASE_USER: postgres
+      DATABASE_PASS: admin
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]
+    develop:
+      watch:
+        - action: sync
+          path: ./backend/src/
+          target: /workspace/

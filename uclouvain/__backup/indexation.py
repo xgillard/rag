@@ -26,9 +26,14 @@ def get_database() -> connection:
     )
 
 
-def get_text(fname: Path) -> str:
-    """Extrait le texte d'un document."""
+def get_ocr_text(fname: Path, ocr: bool = False) -> str:
+    """Extrait le texte d'un document en utilisant l'ocr si nécessaire."""
     return "\n".join([page.get_text(textpage=page.get_textpage_ocr()) for page in pymupdf.open(fname)])
+
+
+def get_text(fname: Path) -> str:
+    """Extrait le texte d'un document pdf (sans utiliser l'ocr)"""
+    return "\n".join([page.get_text() for page in pymupdf.open(fname)])
 
 
 def index(
@@ -44,25 +49,33 @@ def index(
     """
     with conn.cursor() as cur:
         for file in folder.rglob("*.pdf"):
-            text: str = get_text(file)
-            chunks: list[EmbeddedChunk] = pipeline(text)
+            try:
+                cur.execute("SELECT COUNT(text) FROM documents WHERE path_to_doc = %s;", (f"{file}",))
+                cnt: int = cur.fetchone()[0]
+                if cnt:
+                    print(f"SKIP {file} -- {cnt}")
+                    continue
+                text: str = get_text(file)
+                chunks: list[EmbeddedChunk] = pipeline(text)
 
-            for chunk in chunks:
-                cur.execute(
-                    "INSERT INTO documents(path_to_doc, text, embedding) VALUES(%s, %s, %s);",
-                    (f"{file}", chunk.text, chunk.embedding.tolist()),
-                )
-            print(f"DONE : {file}")
-        conn.commit()
+                for chunk in chunks:
+                    cur.execute(
+                        "INSERT INTO documents(path_to_doc, text, embedding) VALUES(%s, %s, %s);",
+                        (f"{file}", chunk.text, chunk.embedding.tolist()),
+                    )
+                print(f"DONE : {file}")
+            except Exception as e:
+                print(f"FAIL : {file} -- {e}")
+            conn.commit()
 
 
 if __name__ == "__main__":
     from transformers import AutoModel, AutoTokenizer
 
-    model_name = "almanach/camembertav2-base"
+    model_name = "intfloat/multilingual-e5-large-instruct"  # "FacebookAI/xlm-roberta-large"  # "FacebookAI/xlm-roberta-base"  # "xaviergillard/rag_ucl"
     tokenizer: AutoTokenizer = AutoTokenizer.from_pretrained(model_name)
     model: AutoModel = AutoModel.from_pretrained(model_name)
     pipeline: EmbeddingPipeline = embedding_pipeline(tokenizer=tokenizer, model=model, device="cuda")
 
     conn: connection = get_database()
-    index(Path("./exemple"), pipeline, conn)
+    index(Path("./example"), pipeline, conn)
