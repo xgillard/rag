@@ -14,14 +14,16 @@ if TYPE_CHECKING:
     import numpy as np
 
 ###################################################################################
-CHECKPT: str = "jinaai/jina-embeddings-v3"
+CHECKPT: str = "intfloat/multilingual-e5-large-instruct"
 DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
-DTYPE: torch.dtype = torch.bfloat16 if DEVICE == "cuda" else torch.float32
 TOKENIZER: AutoTokenizer = AutoTokenizer.from_pretrained(CHECKPT)
-MODEL: AutoModel = AutoModel.from_pretrained(CHECKPT, torch_dtype=DTYPE, trust_remote_code=True).to(DEVICE)
+# DTYPE: torch.dtype = torch.bfloat16 if DEVICE == "cuda" else torch.float32
+# MODEL: AutoModel = AutoModel.from_pretrained(CHECKPT, torch_dtype=DTYPE, trust_remote_code=True).to(DEVICE)
+DTYPE: torch.dtype = torch.float16
+MODEL: AutoModel = AutoModel.from_pretrained(CHECKPT, torch_dtype=DTYPE).to(DEVICE)
 # hyper param
 STRIDE: int = 20
-MAX_LENGTH: int = 8192
+MAX_LENGTH: int = 512
 # lower runtime impact of the model
 MODEL.eval()
 ###################################################################################
@@ -83,11 +85,15 @@ def compute_embeddings(
 
     input_ids = encoded["input_ids"].to(DEVICE)
     attn_mask = encoded["attention_mask"].to(DEVICE)
-    # this is specific to "jinaai/jina-embeddings-v3"
-    task_id = MODEL._adaptation_map[str(task)]  # noqa: SLF001
-    adapter_mask = torch.full((input_ids.shape[0],), task_id, dtype=torch.int32)
+    ##################################################################################
+    ## this is specific to "jinaai/jina-embeddings-v3"
+    # task_id = MODEL._adaptation_map[str(task)]
+    # adapter_mask = torch.full((input_ids.shape[0],), task_id, dtype=torch.int32)
+    ##################################################################################
+    ## compute the output
+    # output = MODEL(input_ids, attn_mask, adapter_mask=adapter_mask)
     # compute the output
-    output = MODEL(input_ids, attn_mask, adapter_mask=adapter_mask)
+    output = MODEL(input_ids, attn_mask)
 
     lhs: torch.tensor = output.last_hidden_state  # shape: [b, s, h]
     embed: torch.tensor = __avg_pooling(lhs, attn_mask)  # shape: [b, h]
