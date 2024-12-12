@@ -59,8 +59,6 @@ async def retrieve(user_request: str, nb_results: int = 5) -> list[RelevantDocum
     """Retrieve the `nb_results` most relevant documents based on a user request."""
     embed: np.ndarray = encode_query(user_request)
 
-    print(embed.shape)
-
     with get_database().cursor() as cur:
         param: str = ", ".join(str(x) for x in embed.tolist())
         param: str = f"[{param}]"
