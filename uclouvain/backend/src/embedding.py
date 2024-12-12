@@ -34,6 +34,29 @@ class EmbeddedChunk(NamedTuple):
     embedding: np.ndarray
 
 
+def encode_document(text: str) -> list[EmbeddedChunk]:
+    """Compute the embeddings for the various chunks of a document.
+
+    The document is 1st chunked by the tokenizer and then document
+    embedding is computed for each chunk.
+    """
+    return compute_embeddings(text, "retrieval.passage")
+
+
+def encode_query(text: str) -> np.ndarray:
+    """Compute one single embedding meant to represent the whole user query.
+
+    In the event where the user query is very long, the tokenizer will split
+    it in several contexts and the model will produce one embedding for each
+    chunk. These many embeddings, however, are not really useful when it comes
+    to retrieving relevant documents to answer the query. This is why, in the
+    event of a very long query, the chunks embeddings are pooled together so
+    as to produce one single vector to encode the user request.
+    """
+    chunks: np.ndarray = np.stack([e.embedding for e in compute_embeddings(text, "retrieval.query")])
+    return np.mean(chunks, axis=0)
+
+
 @torch.no_grad()
 def compute_embeddings(
     text: str,

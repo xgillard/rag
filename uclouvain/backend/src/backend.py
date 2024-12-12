@@ -7,12 +7,17 @@ developer willing to conduct semantic search & indexation.
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 import psycopg2
 import pymupdf
 from fastapi import FastAPI, HTTPException, UploadFile
+from pydantic import BaseModel
 
-from .embedding import EmbeddedChunk, compute_embeddings
+from .embedding import EmbeddedChunk, encode_document, encode_query
+
+if TYPE_CHECKING:
+    import numpy as np
 
 app = FastAPI()
 
@@ -27,8 +32,8 @@ async def index_file(path_to_doc: str, file: UploadFile) -> str | None:
             cnt: int = cur.fetchone()[0]
             if cnt:
                 return f"SKIP {path_to_doc} -- {cnt}"
-            text: str = get_text(file)
-            chunks: list[EmbeddedChunk] = compute_embeddings(text, "retrieval.passage")
+            text: str = await get_text(file)
+            chunks: list[EmbeddedChunk] = encode_document(text)
 
             for chunk in chunks:
                 cur.execute(
@@ -42,9 +47,38 @@ async def index_file(path_to_doc: str, file: UploadFile) -> str | None:
         return None
 
 
-def get_text(file: UploadFile) -> str:
+class RelevantDocument(BaseModel):
+    """One model that is deemed relevant for the user request."""
+
+    path_to_doc: str
+    text: str
+
+
+@app.post("/retrieval/")
+async def retrieve(user_request: str, nb_results: int = 5) -> list[RelevantDocument]:
+    """Retrieve the `nb_results` most relevant documents based on a user request."""
+    embed: np.ndarray = encode_query(user_request)
+
+    print(embed.shape)
+
+    with get_database().cursor() as cur:
+        param: str = ", ".join(str(x) for x in embed.tolist())
+        param: str = f"[{param}]"
+        cur.execute(
+            """
+            SELECT path_to_doc, text
+            FROM documents
+            ORDER BY embedding <=> %s
+            LIMIT %s;
+            """,
+            (param, nb_results),
+        )
+        return [RelevantDocument(path_to_doc=r[0], text=r[1]) for r in cur.fetchall()]
+
+
+async def get_text(file: UploadFile) -> str:
     """Extract text from the given file without using ocr."""
-    return "\n".join([page.get_text() for page in pymupdf.open(file.file)])
+    return "\n".join([page.get_text() for page in pymupdf.open(stream=await file.read(), filename=file.filename)])
 
 
 def get_ocr_text(file: UploadFile) -> str:
