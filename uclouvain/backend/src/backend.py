@@ -9,15 +9,16 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
+import numpy as np
 import psycopg2
 import pymupdf
 from fastapi import FastAPI, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from .embedding import EmbeddedChunk, encode_document, encode_query
+from . import reranking, retrieval
 
 if TYPE_CHECKING:
-    import numpy as np
+    from .embedding import EmbeddedChunk
 
 app = FastAPI()
 
@@ -33,7 +34,7 @@ async def index_file(path_to_doc: str, file: UploadFile) -> str | None:
             if cnt:
                 return f"SKIP {path_to_doc} -- {cnt}"
             text: str = await get_text(file)
-            chunks: list[EmbeddedChunk] = encode_document(text)
+            chunks: list[EmbeddedChunk] = retrieval.encode_document(text)
 
             for chunk in chunks:
                 cur.execute(
@@ -57,7 +58,7 @@ class RelevantDocument(BaseModel):
 @app.post("/retrieval/")
 async def retrieve(user_request: str, nb_results: int = 5) -> list[RelevantDocument]:
     """Retrieve the `nb_results` most relevant documents based on a user request."""
-    embed: np.ndarray = encode_query(user_request)
+    embed: np.ndarray = retrieval.encode_query(user_request)
 
     with get_database().cursor() as cur:
         param: str = ", ".join(str(x) for x in embed.tolist())
@@ -69,9 +70,17 @@ async def retrieve(user_request: str, nb_results: int = 5) -> list[RelevantDocum
             ORDER BY embedding <=> %s
             LIMIT %s;
             """,
-            (param, nb_results),
+            (param, 100),
         )
-        return [RelevantDocument(path_to_doc=r[0], text=r[1]) for r in cur.fetchall()]
+        retrieved = [RelevantDocument(path_to_doc=r[0], text=r[1]) for r in cur.fetchall()]
+    # reranking
+    reranking_q = reranking.encode_query(user_request)
+
+    doc_embeds = np.array([reranking.encode_document(doc.text)[0].embedding for doc in retrieved])
+    scores = reranking_q @ doc_embeds.T
+    reranked = list(enumerate(retrieved))
+    reranked.sort(key=lambda i_d: scores[i_d[0]], reverse=True)
+    return [doc for _, doc in reranked[:nb_results]]
 
 
 async def get_text(file: UploadFile) -> str:
