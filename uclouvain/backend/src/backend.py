@@ -6,14 +6,15 @@ developer willing to conduct semantic search & indexation.
 
 from __future__ import annotations
 
-import numpy as np
 import pymupdf
 from fastapi import FastAPI, HTTPException, UploadFile
 
 from .database import RelevantDocument, find_similar_to, is_already_indexed, save_chunks
-from .embedding import EmbeddedChunk, JinaaiPipeline, MultilingualE5InstructPipeline
+from .embedding import EmbeddedChunk, MultilingualE5InstructPipeline
 
 app = FastAPI()
+
+PIPE = MultilingualE5InstructPipeline()
 
 
 @app.post("/indexation/")
@@ -24,7 +25,7 @@ async def index_file(path_to_doc: str, file: UploadFile) -> str | None:
             return f"SKIP {path_to_doc} -- {cnt}"
 
         text: str = await get_text(file)
-        chunks: list[EmbeddedChunk] = JinaaiPipeline().encode_document(text)
+        chunks: list[EmbeddedChunk] = PIPE.encode_document(text)
         save_chunks(path_to_doc, chunks)
         return f"DONE : {path_to_doc}"  # noqa: TRY300
     except Exception as e:  # noqa: BLE001
@@ -35,19 +36,7 @@ async def index_file(path_to_doc: str, file: UploadFile) -> str | None:
 @app.post("/retrieval/")
 async def retrieve(user_request: str, nb_results: int = 5) -> list[RelevantDocument]:
     """Retrieve the `nb_results` most relevant documents based on a user request."""
-    embed: np.ndarray = MultilingualE5InstructPipeline().encode_query(user_request)
-
-    retrieved: list[RelevantDocument] = find_similar_to(embed)
-    # reranking
-    reranking_q: np.ndarray = MultilingualE5InstructPipeline().encode_query(user_request)
-
-    doc_embeds = np.array(
-        [MultilingualE5InstructPipeline().encode_document(doc.text)[0].embedding for doc in retrieved],
-    )
-    scores = reranking_q @ doc_embeds.T
-    reranked = list(enumerate(retrieved))
-    reranked.sort(key=lambda i_d: scores[i_d[0]], reverse=True)
-    return [doc for _, doc in reranked[:nb_results]]
+    return find_similar_to(PIPE.encode_query(user_request), nb_results)
 
 
 async def get_text(file: UploadFile) -> str:
