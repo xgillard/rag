@@ -32,13 +32,13 @@ def get_database() -> psycopg2.connection:
     )
 
 
-def is_already_indexed(uri: str) -> bool:
+def is_already_indexed(uri: str) -> int:
     """Return True iff the file is already known in the database."""
     conn = get_database()
     with conn.cursor() as cur:
         cur.execute("SELECT COUNT(text) FROM documents WHERE path_to_doc = %s;", (f"{uri}",))
         cnt: int = cur.fetchone()[0]
-        return cnt > 0
+        return cnt
 
 
 def save_chunks(path_to_doc: str, chunks: list[EmbeddedChunk]) -> None:
