@@ -43,13 +43,17 @@ class EmbeddingPipeline:
     tokenizer: AutoTokenizer
     stride: int = 20
     max_length: int = 512
+    query_prefix: str | None = None
+    document_prefix: str | None = None
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         pretrained_model_name_or_path: str,
         device: torch.device | str = "cpu",
         stride: int = 20,
         max_length: int = 512,
+        query_prefix: str | None = None,
+        document_prefix: str | None = None,
         **kwargs: dict[str, Any],
     ) -> None:
         """Initialize the pipeline.
@@ -73,6 +77,11 @@ class EmbeddingPipeline:
         - max_length: (int) the number of tokens that should be kept in one chunk
                   of text when the text of a document is so long that it must be
                   split in several chunks.
+        - query_prefix: (str) a prefix that is mandatory at the beginning of each
+                  chunk when computing the embedding for a retrieval query.
+        - document_prefix: (str) a prefix that is mandatory at the beginning of each
+                  passage chunk when computing the embeddings for a retrieval document
+                  chunk.
         - kwargs: any additional params you might want to pass on to the model for
                   its instantiation. For example: `trust_remote_code=True` if the
                    model you intend to use requires additional unvetted code for
@@ -84,6 +93,8 @@ class EmbeddingPipeline:
         self.tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path)
         self.stride = stride
         self.max_length = max_length
+        self.query_prefix = query_prefix
+        self.document_prefix = document_prefix
 
     def encode_document(self, text: str) -> list[EmbeddedChunk]:
         """Compute the embeddings for the various chunks of a document.
@@ -92,7 +103,7 @@ class EmbeddingPipeline:
         embedding is computed for each chunk.
         """
         text: str = self.preprocess(text)
-        encoded: dict[str, Any] = self.tokenize(text)
+        encoded: dict[str, Any] = self.tokenize(text, self.document_prefix)
         embed: torch.tensor = self.forward(encoded)  # shape [b, s, h]
         embed: torch.tensor = EmbeddingPipeline.avg_pool_multi(embed, encoded["attention_mask"])  # shape: [b, h]
         embed: torch.tensor = EmbeddingPipeline.normalize(embed)  # shape: [b, h]
@@ -112,7 +123,7 @@ class EmbeddingPipeline:
         as to produce one single vector to encode the user request.
         """
         text: str = self.preprocess(text)
-        encoded: dict[str, Any] = self.tokenize(text)
+        encoded: dict[str, Any] = self.tokenize(text, self.query_prefix)
         embed: torch.tensor = self.forward(encoded)  # shape [b, s, h]
         embed: torch.tensor = EmbeddingPipeline.avg_pool_single(embed, encoded["attention_mask"])  # shape: [h, ]
         embed: torch.tensor = EmbeddingPipeline.normalize(embed)  # shape: [h, ]
@@ -131,10 +142,16 @@ class EmbeddingPipeline:
         """
         return preprocess(text)
 
-    def tokenize(self, text: str) -> dict[str, Any]:
+    def tokenize(self, text: str, prefix: str | None = None) -> dict[str, torch.tensor]:
         """Chunk the text if need be and return an a BatchEncoding.
 
-        That is, it returns a dict-like object comprising the elements that must be
+        If prefix is not None, then this method ensures that each of the produced
+        chunk is going to be prefixed with the appropriate data
+        (input_ids, attention_mask, offset_mapping) to make the chunk start with
+        that given prefix.
+
+        ## Return Value
+        It returns a dict-like object comprising the elements that must be
         passed to the forward method in order to perform the actual feature extraction.
 
         ## In most cases
@@ -156,20 +173,46 @@ class EmbeddingPipeline:
               of information is used to retrieve the original text corresponding to each
               chunk of encoded text.
         """
-        encoded: BatchEncoding = self.tokenizer(
+        s = 0
+        if prefix is not None:
+            pids = self.tokenizer.encode(
+                prefix,
+                max_length=self.max_length,
+                padding=False,
+                truncation=True,
+                add_special_tokens=False,
+                return_tensors="pt",
+            )
+            _, s = pids.shape
+
+        enc = self.tokenizer(
             text,
             stride=self.stride,
-            return_overflowing_tokens=True,
-            truncation=True,
+            max_length=self.max_length - s,
             padding=True,
-            max_length=self.max_length,
-            return_tensors="pt",
+            truncation=True,
             return_offsets_mapping=True,
+            return_overflowing_tokens=True,
+            return_tensors="pt",
         )
+        input_ids = enc["input_ids"]
+        attention = enc["attention_mask"]
+        offsets = enc["offset_mapping"]
+        # calcul des additions à faire aux différents tokens.
+        if prefix is not None:
+            b, _ = input_ids.shape
+            _, s = pids.shape
+            pids = pids.expand((b, s))
+            patt = torch.ones_like(pids)
+            poff = torch.tensor([[0, 0]]).expand((b, s, 2))
+            # calcul des nouveaux tenseurs.
+            input_ids = torch.concat([input_ids[:, 0:1], pids, input_ids[:, 1:]], dim=1)
+            attention = torch.concat([attention[:, 0:1], patt, attention[:, 1:]], dim=1)
+            offsets = torch.concat([offsets[:, 0:1, :], poff, offsets[:, 1:, :]], dim=1)
         return {
-            "input_ids": encoded["input_ids"].to(self.device),
-            "attention_mask": encoded["attention_mask"].to(self.device),
-            "offset_mapping": encoded["offset_mapping"],
+            "input_ids": input_ids.to(self.device),
+            "attention_mask": attention.to(self.device),
+            "offset_mapping": offsets.to(self.device),
         }
 
     @torch.no_grad()
@@ -250,6 +293,30 @@ def singleton(cls: type[T]) -> Callable[..., T]:
         return __instances[cls]
 
     return getinstance
+
+
+@singleton
+class MultilingualE5Pipeline(EmbeddingPipeline):
+    """Customize the EmbeddingPipeline to use intfloat/multilingual-e5-base or intfloat/multilingual-e5-small.
+
+    # Note:
+    This class is meant to be a singleton object in order to not overload the available GPU
+    with too many instances of the same models.
+    """
+
+    CHECKPT: str = "intfloat/multilingual-e5-small"
+    DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
+    DTYPE: torch.dtype = torch.float32
+
+    def __init__(self) -> None:
+        """Initialize the singleton instance."""
+        super().__init__(
+            self.CHECKPT,
+            device=self.DEVICE,
+            torch_dtype=self.DTYPE,
+            query_prefix="query: ",
+            document_prefix="passage: ",
+        )
 
 
 @singleton

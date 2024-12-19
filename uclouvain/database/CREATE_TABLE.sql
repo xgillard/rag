@@ -4,7 +4,7 @@ CREATE EXTENSION vector;
 CREATE TABLE  IF NOT EXISTS documents
 (
 	id 				bigserial 	    primary key not null,
-	embedding 		vector(1024)	not null,
+	embedding 		vector(384)	    not null,
 	text 			varchar		    not null,
 	path_to_doc		varchar         not null
 );

@@ -10,11 +10,11 @@ import pymupdf
 from fastapi import FastAPI, HTTPException, UploadFile
 
 from .database import RelevantDocument, find_similar_to, is_already_indexed, save_chunks
-from .embedding import EmbeddedChunk, MultilingualE5InstructPipeline
+from .embedding import EmbeddedChunk, MultilingualE5Pipeline
 
 app = FastAPI()
 
-PIPE = MultilingualE5InstructPipeline()
+PIPE = MultilingualE5Pipeline()
 
 
 @app.post("/indexation/")
