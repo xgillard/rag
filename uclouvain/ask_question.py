@@ -13,7 +13,7 @@ def ask_question(host_port: str, question: str) -> None:
         f"http://{host_port}/retrieval",
         params={
             "user_request": question,
-            "nb_results": 5,
+            "nb_results": 3,
         },
     )
     if response.status_code == 200:
@@ -40,4 +40,5 @@ def main(host_port: str) -> None:
 
 
 if __name__ == "__main__":
-    main("localhost:8000")
+    # main("localhost:8000")
+    main("automemo.sipr.ucl.ac.be:8000")

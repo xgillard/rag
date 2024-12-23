@@ -11,11 +11,12 @@ from fastapi import FastAPI, HTTPException, UploadFile
 
 from .database import RelevantDocument, find_similar_to, is_already_indexed, save_chunks
 from .embedding import EmbeddedChunk, MultilingualE5Pipeline
+from .generation import GenerationPipeline
 
 app = FastAPI()
 
 PIPE = MultilingualE5Pipeline()
-
+GEN  = GenerationPipeline()
 
 @app.post("/indexation/")
 async def index_file(path_to_doc: str, file: UploadFile) -> str | None:
@@ -38,6 +39,11 @@ async def retrieve(user_request: str, nb_results: int = 5) -> list[RelevantDocum
     """Retrieve the `nb_results` most relevant documents based on a user request."""
     return find_similar_to(PIPE.encode_query(user_request), nb_results)
 
+
+@app.post("/generation/")
+async def generate(prompt: str) -> str:
+    """Generate a text response to the given prompt."""
+    return GEN([{"role": "user", "content": prompt}])
 
 async def get_text(file: UploadFile) -> str:
     """Extract text from the given file without using ocr."""

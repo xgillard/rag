@@ -3,5 +3,6 @@
 __all__ = [
     "backend",
     "embedding",
+    "generation",
     "preprocessing",
 ]

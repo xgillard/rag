@@ -31,4 +31,5 @@ def main(host_port: str, folder: Path) -> None:
 
 
 if __name__ == "__main__":
-    main("localhost:8000", Path("./corpus-example"))
+    # main("localhost:8000", Path("./corpus-example"))
+    main("automemo.sipr.ucl.ac.be:8000", Path("./corpus"))

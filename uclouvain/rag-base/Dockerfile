@@ -38,6 +38,10 @@ RUN --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
 # made available to pymupdf.
 ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
 
+# Step 4: Copy the pretrained models.
+COPY models /workspace/
+
+
 # In order to run this container interactively with hardware acceleration
 # enabled, just run the following command:
 # ```

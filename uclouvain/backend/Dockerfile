@@ -8,9 +8,6 @@
 # indexation, retrieval and and answer generation.
 FROM xaviergillard/rag-base
 
-RUN --mount=type=bind,source=prefetch.py,target=/tmp/prefetch.py \
-    python /tmp/prefetch.py
-
 # Install the application files in the container
 COPY src/* /workspace/
 
