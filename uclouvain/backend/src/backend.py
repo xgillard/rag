@@ -39,6 +39,25 @@ async def retrieve(user_request: str, nb_results: int = 5) -> list[RelevantDocum
     """Retrieve the `nb_results` most relevant documents based on a user request."""
     return find_similar_to(PIPE.encode_query(user_request), nb_results)
 
+@app.post("/rag")
+async def rag(question: str) -> str:
+    documents: list[RelevantDocument] = await retrieve(question)
+    sources: str = "\n".join(
+        f"{'#'*40}\n{d.path_to_doc}\n{'-'*40}\n{d.text}" for d in documents
+    )
+    prompt: str = f"""
+    You are an assistant to the university archivists. Reply to the archivist's 
+    question as good as possible using the (possibly relevant) minutes excerpts
+    that are given below. Cite your sources in your reply. When an answer cannot
+    be found in the given sources, simply say so.
+
+    ## Minutes Excerpts
+    {sources}
+
+    ## Archivist's Question
+    {question}
+    """.lstrip()
+    return await generate(prompt)
 
 @app.post("/generation/")
 async def generate(prompt: str) -> str:
