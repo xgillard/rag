@@ -3,4 +3,5 @@
 **/example/
 **/.venv/
 **/models/
+**/.env
 
