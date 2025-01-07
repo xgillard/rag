@@ -1,16 +1,12 @@
 [project]
-name                   = "rag-uclouvain"
+name                   = "tunnelling"
 version                = "0.0.1.dev"
-description            = "Un truc pour rechercher et faire la synthèse des pv de FIAL"
+description            = "Ouvre un tunnel ssh pour faciliter le dev."
 readme                 = "README.md"
 authors                = [ {name = "Xavier GILLARD", email = "xavier.gillard@uclouvain.be"} ]
 maintainers            = [ {name = "Xavier GILLARD", email = "xavier.gillard@uclouvain.be"} ]
 dependencies           = [
-    "pydantic",
-    "pymupdf",
-    "pytorch",
-    "transformers",
-    "psycopg2",
+    "paramiko"
 ]
 
 ######## BUILD-SYSTEM ################################################

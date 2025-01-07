@@ -48,8 +48,9 @@ async def rag(question: str) -> str:
     prompt: str = f"""
     You are an assistant to the university archivists. Reply to the archivist's 
     question as good as possible using the (possibly relevant) minutes excerpts
-    that are given below. Cite your sources in your reply. When an answer cannot
-    be found in the given sources, simply say so.
+    that are given below. When an answer cannot be found in the given sources, 
+    simply say so. Do not forget to cite the used sources at the end of your 
+    reply.
 
     ## Minutes Excerpts
     {sources}

@@ -39,6 +39,7 @@ services:
   # find the n document (chunks) most similar to a user search query.
   database:
     build: ./database
+    profiles: [prod]
     ports:
       - "6666:5432"
     environment:
@@ -47,6 +48,18 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: admin
       POSTGRES_DB: rag
+  
+  # this service does not actually spawn a database. Instead, it allows me to
+  # reuse the prod container that has already been deployed in the actual
+  # infrastructure. All it does it to setup an ssh tunnel to the port exposed
+  # by the actual server.
+  dev-database:
+    image: xaviergillard/tunnelling # alt: build: ./tunnelling
+    profiles: [dev]
+    ports:
+      - "6666:6666"
+    env_file: 
+      - .env
   
   # This service provides the backend for the application. It implements
   # most of the 'hard' logic of the RAG application. Most notably, it
@@ -86,13 +99,13 @@ services:
   # container during development.
   dev-backend:
     build: ./backend
-    depends_on: [database]
+    depends_on: [dev-database]
     profiles:   [dev]
     ports:      ["8000:80"]
     command:    fastapi dev backend.py --port 80 --host 0.0.0.0
     environment:
-      DATABASE_HOST: database
-      DATABASE_PORT: 5432
+      DATABASE_HOST: dev-database
+      DATABASE_PORT: 6666
       DATABASE_NAME: rag
       DATABASE_USER: postgres
       DATABASE_PASS: admin
