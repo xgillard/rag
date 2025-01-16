@@ -55,6 +55,7 @@ nvidia-nvjitlink-cu12==12.4.127
 nvidia-nvtx-cu12==12.4.127
 onnx==1.17.0
 onnxruntime==1.20.1
+onnxruntime-genai-cuda==0.5.2
 onnxruntime-gpu==1.20.1
 optimum==1.23.3
 packaging==24.2
@@ -68,6 +69,7 @@ pydantic==2.10.3
 pydantic_core==2.27.1
 Pygments==2.18.0
 PyMuPDF==1.25.0
+pymupdf4llm==0.0.17
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 python-multipart==0.0.19
