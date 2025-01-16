@@ -10,20 +10,13 @@ from requests import post
 def ask_question(host_port: str, question: str) -> None:
     """Asks a question about the corpus."""
     response = post(
-        f"http://{host_port}/retrieval",
+        f"http://{host_port}/rag",
         params={
-            "user_request": question,
-            "nb_results": 3,
+            "question": question,
         },
     )
     if response.status_code == 200:
-        messages = response.json()
-        for m in messages:
-            print("#" * 80)
-            print(f"{m['path_to_doc']}")
-            print("~" * 80)
-            print(f"{m['text']}")
-
+        print(response.text)
     else:
         print("!" * 80)
         print(response.text, file=stderr)
@@ -40,5 +33,5 @@ def main(host_port: str) -> None:
 
 
 if __name__ == "__main__":
-    # main("localhost:8000")
-    main("automemo.sipr.ucl.ac.be:8000")
+    main("localhost:8000")
+    #main("automemo.sipr.ucl.ac.be:8000")

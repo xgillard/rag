@@ -73,11 +73,12 @@ def visible(char: str) -> bool:
 
 def normalize_text(text: str) -> str:
     """Normalize the text so as to lower case all, remove all special chars."""
+    text: str = text.strip()
     text: str = text.translate(REPLACEMENTS)
     text: str = unicodedata.normalize("NFD", text)
     text: str = "".join(c for c in text if not unicodedata.combining(c) and visible(c))
     text: str = unicodedata.normalize("NFC", text)
-    return text.casefold()
+    return text#.casefold()
 
 
 def preprocess(text: str) -> str:

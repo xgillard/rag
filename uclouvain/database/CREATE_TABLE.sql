@@ -8,3 +8,6 @@ CREATE TABLE  IF NOT EXISTS documents
 	text 			varchar		    not null,
 	path_to_doc		varchar         not null
 );
+
+-- create index
+CREATE INDEX ON documents USING hnsw (embedding vector_l2_ops);
