@@ -31,7 +31,6 @@ app = FastAPI()
 ###### LANGUAGE MODELS ########################################################
 DEVICE: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 EMBED: SentenceTransformer = SentenceTransformer("intfloat/multilingual-e5-large-instruct", device=DEVICE)
-#GEN  = pipeline("text-generation", model="meta-llama/Llama-3.2-1B-Instruct", device_map="auto")
 
 def ort_llm_model() -> og.Model:
     """Return the appropriate ORT-genai model."""
@@ -78,7 +77,7 @@ def hf_llm_model() -> AutoModelForCausalLM:
 def hf_llm_respond(model: AutoModelForCausalLM, user_prompt: str, new_tokens: int) -> Iterator[str]:
     """Return the text response from the llm."""
     tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B-Instruct")
-    streamer  = TextIteratorStreamer(tokenizer, skip_prompt=True)
+    streamer  = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
     prompt = f"<|user|>\n{user_prompt} <|end|>\n<|assistant|>## Answer\n"
     tokens = tokenizer(prompt, return_tensors='pt').to(model.device)
     _outputs = model.generate(
@@ -90,8 +89,6 @@ def hf_llm_respond(model: AutoModelForCausalLM, user_prompt: str, new_tokens: in
         top_k=5,
         top_p=0.95,
     )
-    #output = tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
-    #yield output[len(prompt)-1:]
     yield from streamer
 
 def hf_pipeline() -> Callable[[str], Iterator[str]]:
