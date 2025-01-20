@@ -16,7 +16,7 @@ from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
 
 from .database import RelevantDocument, find_similar_to, is_already_indexed, save_chunks
 from .preprocessing import preprocess
@@ -68,26 +68,31 @@ def ort_pipeline() -> Callable[[str], Iterator[str]]:
     model = ort_llm_model()
     return lambda text, new_tokens: ort_llm_respond(model, text, new_tokens)
 
-def hf_llm_model():
-    model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3.2-1B-Instruct")
+def hf_llm_model() -> AutoModelForCausalLM:
+    """Return the huggingface (pytorch) model for the generation model."""
+    model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3.2-1B-Instruct", torch_dtype=torch.bfloat16)
     if torch.cuda.is_available():
         model = model.to('cuda')
     return model
 
-def hf_llm_respond(model, user_prompt, new_tokens):
+def hf_llm_respond(model: AutoModelForCausalLM, user_prompt: str, new_tokens: int) -> Iterator[str]:
+    """Return the text response from the llm."""
     tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B-Instruct")
+    streamer  = TextIteratorStreamer(tokenizer, skip_prompt=True)
     prompt = f"<|user|>\n{user_prompt} <|end|>\n<|assistant|>## Answer\n"
     tokens = tokenizer(prompt, return_tensors='pt').to(model.device)
-    outputs = model.generate(
+    _outputs = model.generate(
         **tokens,
+        streamer=streamer,
         max_new_tokens=new_tokens,
         do_sample=True,
         temperature=0.05,
         top_k=5,
         top_p=0.95,
     )
-    output = tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
-    yield output[len(prompt)-1:]
+    #output = tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
+    #yield output[len(prompt)-1:]
+    yield from streamer
 
 def hf_pipeline() -> Callable[[str], Iterator[str]]:
     """Pipeline to generate text response to a prompt."""
