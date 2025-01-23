@@ -32,6 +32,14 @@ app = FastAPI()
 DEVICE: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 EMBED: SentenceTransformer = SentenceTransformer("intfloat/multilingual-e5-large-instruct", device=DEVICE)
 
+def apply_llama_chat_template(prompt: str) -> str:
+    """Return the text formatted according to the llama3.2 chat template."""
+    template: str = """<|begin_of_text|>
+    <|start_header_id|>user<|end_header_id|>{prompt}<|eot_id|>
+    <|start_header_id|>assistant<|end_header_id|>"""
+    template = "".join(line.strip() for line in template.splitlines())
+    return template.format(prompt=prompt)
+
 def ort_llm_model() -> og.Model:
     """Return the appropriate ORT-genai model."""
     path: str = "onnx/llama-3.2-1b-instruct__int4"
@@ -43,7 +51,7 @@ def ort_llm_respond(model: og.Model, user_prompt: str, new_tokens: int) -> Itera
     """Return the text response from the llm using a quantized llm."""
     tokenizer: og.Tokenizer = og.Tokenizer(model)
     streamer: og.TokenizerStream = tokenizer.create_stream()
-    prompt: str = f"<|user|>\n{user_prompt} <|end|>\n<|assistant|>## Answer\n"
+    prompt: str = apply_llama_chat_template(user_prompt)
     tokens: list[int] = tokenizer.encode(prompt)
     # generation config
     params: og.GeneratorParams = og.GeneratorParams(model)
@@ -78,7 +86,7 @@ def hf_llm_respond(model: AutoModelForCausalLM, user_prompt: str, new_tokens: in
     """Return the text response from the llm."""
     tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B-Instruct")
     streamer  = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-    prompt = f"<|user|>\n{user_prompt} <|end|>\n<|assistant|>## Answer\n"
+    prompt = apply_llama_chat_template(user_prompt)
     tokens = tokenizer(prompt, return_tensors='pt').to(model.device)
     _outputs = model.generate(
         **tokens,
