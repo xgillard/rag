@@ -48,6 +48,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: admin
       POSTGRES_DB: rag
+    volumes:
+      - ./database/postgres_data:/var/lib/postgresql/data
   
   # this service does not actually spawn a database. Instead, it allows me to
   # reuse the prod container that has already been deployed in the actual
