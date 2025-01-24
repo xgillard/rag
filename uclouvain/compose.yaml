@@ -88,6 +88,9 @@ services:
       DATABASE_NAME: rag
       DATABASE_USER: postgres
       DATABASE_PASS: admin
+    volumes:
+      - ./backend/models/intfloat:/workspace/intfloat
+      - ./backend/models/meta-llama:/workspace/meta-llama
     deploy:
       resources:
         reservations:
@@ -111,6 +114,9 @@ services:
       DATABASE_NAME: rag
       DATABASE_USER: postgres
       DATABASE_PASS: admin
+    volumes:
+      - ./backend/models/intfloat:/workspace/intfloat
+      - ./backend/models/meta-llama:/workspace/meta-llama
     deploy:
       resources:
         reservations:

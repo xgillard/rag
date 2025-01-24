@@ -39,7 +39,7 @@ RUN --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
 ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
 
 # Step 4: Copy the pretrained models.
-COPY models /workspace/
+#COPY models /workspace/
 
 
 # In order to run this container interactively with hardware acceleration
