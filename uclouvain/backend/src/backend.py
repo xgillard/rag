@@ -6,6 +6,7 @@ developer willing to conduct semantic search & indexation.
 
 from __future__ import annotations
 
+from threading import Thread
 from typing import TYPE_CHECKING, Callable, NamedTuple
 
 import onnxruntime_genai as og
@@ -77,26 +78,31 @@ def ort_pipeline() -> Callable[[str], Iterator[str]]:
 
 def hf_llm_model() -> AutoModelForCausalLM:
     """Return the huggingface (pytorch) model for the generation model."""
-    model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3.2-1B-Instruct", torch_dtype=torch.bfloat16)
+    model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3.2-3B-Instruct", torch_dtype=torch.bfloat16)
     if torch.cuda.is_available():
         model = model.to('cuda')
     return model
 
 def hf_llm_respond(model: AutoModelForCausalLM, user_prompt: str, new_tokens: int) -> Iterator[str]:
     """Return the text response from the llm."""
-    tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B-Instruct")
+    tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-3B-Instruct")
     streamer  = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
     prompt = apply_llama_chat_template(user_prompt)
     tokens = tokenizer(prompt, return_tensors='pt').to(model.device)
-    _outputs = model.generate(
-        **tokens,
-        streamer=streamer,
-        max_new_tokens=new_tokens,
-        do_sample=True,
-        temperature=0.05,
-        top_k=5,
-        top_p=0.95,
-    )
+
+    def __generate() -> str:
+        """Perform the actual text generation but enables the response to actually be streaming."""
+        return model.generate(
+            **tokens,
+            streamer=streamer,
+            max_new_tokens=new_tokens,
+            do_sample=True,
+            temperature=0.05,
+            top_k=5,
+            top_p=0.95,
+        )
+    Thread(target=__generate, name="T_hf_streaming_generation").start()
+
     yield from streamer
 
 def hf_pipeline() -> Callable[[str], Iterator[str]]:
