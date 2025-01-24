@@ -21,7 +21,17 @@
 #prefetch("intfloat/multilingual-e5-small", prec)
 #prefetch("meta-llama/Llama-3.2-1B-Instruct", prec)
 
-from sentence_transformers import SentenceTransformer
+#from sentence_transformers import SentenceTransformer
+#
+#prefetch = SentenceTransformer("intfloat/multilingual-e5-small")
+#prefetch.save_pretrained("./models/intfloat/multilingual-e5-small")
 
-prefetch = SentenceTransformer("intfloat/multilingual-e5-small")
-prefetch.save_pretrained("./models/intfloat/multilingual-e5-small")
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+
+checkpoint = "meta-llama/Llama-3.2-3B-Instruct"
+model = AutoModelForCausalLM.from_pretrained(checkpoint, torch_dtype=torch.bfloat16)
+tokenizer = AutoTokenizer.from_pretrained(checkpoint)
+
+model.save_pretrained("./models/meta-llama/Llama-3.2-3B-Instruct")
+tokenizer.save_pretrained("./models/meta-llama/Llama-3.2-3B-Instruct")

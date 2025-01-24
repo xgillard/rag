@@ -37,5 +37,5 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--sources", default=False, help="Afficher le détail des sources apres la réponse ?")
 
     args = parser.parse_args()
-    main("automemo.sipr.ucl.ac.be:8000", args.nb_search, args.nb_tokens, args.sources)
+    main("localhost:8000", args.nb_search, args.nb_tokens, args.sources)
     #main("automemo.sipr.ucl.ac.be:8000")
