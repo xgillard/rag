@@ -8,7 +8,7 @@ function App() {
       <>
         <CssBaseline />
         <Container maxWidth="lg" sx={{alignContent: "center", paddingTop: "10em"}}>
-            <StartConversation title="Que puis-je faire pour vous aujourd'hui ?" text={text} set_text={set_text}></StartConversation>
+            <StartConversation title="Que puis-je faire pour vous aujourd'hui ?" question={text} set_question={set_text}></StartConversation>
         </Container>
       </>
   )
