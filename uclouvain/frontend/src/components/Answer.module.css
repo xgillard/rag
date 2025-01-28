@@ -1,0 +1,49 @@
+.Question {
+    display: block;
+    margin: 1em;
+    padding: 1.5em;
+    border-radius: 30px;
+    background-color: #eeeeee;
+}
+
+.Answer {
+    display: block;
+    margin: 1em;
+    padding: 1.5em;
+    border-radius: 20px;
+    background-color: #ccccee;
+}
+
+.Question::before {
+    display: block;
+    float: left;
+    position: relative;
+    top: -1em;
+    left: calc(-2.5em - 50px);
+    width: 50px;
+    height: 50px;
+    border-radius: 25px;
+    background-size: 30px;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: #eeeeee;
+    background-image: url('https://cdn.jsdelivr.net/npm/bootstrap-icons/icons/person-raised-hand.svg');
+    content: "";
+}
+
+.Answer::before {
+    display: block;
+    float: left;
+    position: relative;
+    top: -1em;
+    left: calc(-2.5em - 50px);
+    width: 50px;
+    height: 50px;
+    border-radius: 25px;
+    background-size: 30px;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: #ccccee;
+    background-image: url('https://cdn.jsdelivr.net/npm/bootstrap-icons/icons/robot.svg');
+    content: "";
+}

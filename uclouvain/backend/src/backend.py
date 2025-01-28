@@ -217,21 +217,20 @@ async def rag(req: RagRequest) -> StreamingResponse:
         search_results=req.search_results,
     ))
     sources: str = "\n".join(
-        f"Ref: [{i}]\nDocument: **{d.path_to_doc}**\n```\n{d.text}```" for i,d in enumerate(documents)
+        f"Ref: [{i}]\nDocument: **{d.path_to_doc}**\n\n{d.text}\n------------------" for i,d in enumerate(documents)
     )
     prompt: str = f"""
-    Use information from the given documents to answer the question below.
+    Answer to the question below.
     Be succinct in your response.
     When unsure about the answer, express your doubts clearly.
-    Add references to the source information at the end of your response.
-    Do not repeat the question.
-    Do not repeat the same information multiple times.
-    Express your response in the same language as that of the question.
+    If a document is not relevant to answer the question, ignore that document.
+    Add a bullet list of references at the end of your response.
+    Use the same language as the question.
 
     ## Question
     {req.question}
 
-    ## Archives
+    ## Documents
     {sources}
     """
     prompt: str = "\n".join(line.strip() for line in prompt.splitlines())

@@ -2,7 +2,15 @@ import { Box, Button, Card, CardContent, CardHeader, IconButton, Input, TextFiel
 import SendIcon from '@mui/icons-material/Send';
 import classes from "./StartConversation.module.css"
 
-export default function StartConversation({title, question, set_question}) {
+export default function StartConversation({title, set_question, send_action}) {
+    function on_keydown(event) {
+        if (event.keycode == 13) {
+            send_action();
+        }
+    }
+    function on_input(event) {
+        set_question(event.target.value);
+    }
     return (<>
             <Box textAlign="center">
                 <img src="logo.png" />
@@ -10,9 +18,9 @@ export default function StartConversation({title, question, set_question}) {
             <Box sx={{padding: "1em"}}>
                 <Typography variant="h6" textAlign="center">{title}</Typography>
             </Box>
-            <input htmltype="text" className={classes.TextInput} onInput={(txt) => {set_question(txt.target.value)}} />
+            <textarea className={classes.TextInput} onInput={on_input} onKeyDown={on_keydown} />
             <Box textAlign="right" marginRight="10px" marginTop="-45px">
-                <IconButton color="primary" onClick={() => {console.log(text)}}><SendIcon /></IconButton>
+                <IconButton color="primary" onClick={send_action}><SendIcon /></IconButton>
             </Box>
     </>);
 }
