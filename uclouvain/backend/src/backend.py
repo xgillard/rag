@@ -14,6 +14,7 @@ import pymupdf
 import pymupdf4llm
 import torch
 from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
@@ -28,6 +29,19 @@ if TYPE_CHECKING:
     import numpy as np
 
 app = FastAPI()
+
+origins = [
+    "*",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 ###### LANGUAGE MODELS ########################################################
 DEVICE: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
