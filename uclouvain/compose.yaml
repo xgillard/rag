@@ -127,3 +127,9 @@ services:
         - action: sync
           path: ./backend/src/
           target: /workspace/
+  # React frontend to demo the potential of this application.
+  frontend:
+    build: ./frontend
+    depends_on: [backend, database],
+    profiles:   [prod],
+    ports:      ["3000:80"]
