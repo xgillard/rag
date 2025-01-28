@@ -223,6 +223,7 @@ async def rag(req: RagRequest) -> StreamingResponse:
     Use information from the given documents to answer the question below.
     Be succinct in your response.
     When unsure about the answer, express your doubts clearly.
+    Add references to the source information at the end of your response.
     Do not repeat the question.
     Do not repeat the same information multiple times.
     Express your response in the same language as that of the question.
