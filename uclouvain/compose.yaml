@@ -133,3 +133,9 @@ services:
     depends_on: [backend, database]
     profiles:   [prod]
     ports:      ["3000:80"]
+  
+  dev-frontend:
+    build: ./frontend
+    depends_on: [dev-backend, dev-database]
+    profiles:   [dev]
+    ports:      ["3000:80"]
